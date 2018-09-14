@@ -19,7 +19,7 @@ def prep_glove():
     vocab = {}
     ivocab = []
     tensors = []
-    with open('data/embedding/sgns.baidubaike.bigram-char', 'r',encoding= 'utf-8') as f:
+    with open('data/embedding/merge_sgns_bigram_char300.txt', 'r',encoding= 'utf-8') as f:
         line_count = 0
         for line in f:
             if line_count !=0:
@@ -95,7 +95,7 @@ class Dictionary(object):
                 data_all = json.load(fpr)
                 count = 0
                 for instance in data_all:
-                    print(count + dataset)
+                    print(str(count) + dataset)
                     words = instance['question']
                     for option in instance['options']: words += option
                     for sent in instance['article']: words += sent

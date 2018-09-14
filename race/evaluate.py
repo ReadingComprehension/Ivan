@@ -33,7 +33,6 @@ def evaluation(model, optimizer, criterion, corpus, cuda, batch_size, dataset='v
         if num >= 2000:break
         #if corpus.start_id[dataset] >= len(corpus.data_all[dataset]): break
 
-
     loss = total_loss / count
     score = accuracy( torch.cat(labels_all), torch.cat(pred_all) )
 

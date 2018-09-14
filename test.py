@@ -3,7 +3,7 @@
 import sys
 import pynlpir
 import  torch
-
+import jieba
 '''
 with open('data/embedding/sgns.baidubaike.bigram-char', 'r',encoding= 'utf-8') as f:
     line_count = 0
@@ -17,12 +17,11 @@ with open('data/embedding/sgns.baidubaike.bigram-char', 'r',encoding= 'utf-8') a
 '''
 
 
-
-word2idx = torch.load('C:/Users/chendiao/Desktop/AIChallenge/comatch-master/data/RC/word2idx_count.pt')
+word2idx = torch.load('C:/Users/chendiao/Desktop/AIChallenge/comatch-jieba/data/RC/idx2word.pt')
 f1 = open('Dictionary','w',encoding='utf-8')
 for word in word2idx:
     f1.write(str(word)+'\t')
-    f1.write(str(word2idx[word]))
+    #f1.write(str(word2idx[word]))
     f1.write('\n')
 
 '''
@@ -34,4 +33,8 @@ seg = [b[0] for b in segments]
 print(seg)
 pynlpir.close()
 
+segments = jieba.lcut(s,HMM=True,cut_all=False)
+
+
+print(segments)
 '''

@@ -1,7 +1,7 @@
 import glob
 import os
 import json
-import pynlpir
+import jieba
 from nltk.tokenize import sent_tokenize, word_tokenize
 import warnings
 
@@ -12,11 +12,8 @@ def sent_word_tokenize(text):
     return words
 
 def wd_tokenize(text):
-    pynlpir.open(encoding_errors='ignore')
-    segments = pynlpir.segment(text)
-    segs = [b[0] for b in segments]
-    pynlpir.close()
-    return segs
+    segments = jieba.lcut(text, HMM=True, cut_all=False)
+    return segments
 
 def answer_index(answer,options):
     if answer == options[0]:
@@ -32,7 +29,7 @@ def answer_index(answer,options):
 
 def preprocess(task):
     print('Preprocessing the dataset ' + task + '...')
-    data_names = ['test']
+    data_names = ['train','valid','test']
     for data_name in data_names:
         data_all = []
         path = os.path.join('data', task, data_name)

@@ -28,19 +28,19 @@ parser.add_argument('--emb_dim', type=int, default=300,
                     help='size of word embeddings')
 parser.add_argument('--mem_dim', type=int, default=150,
                     help='hidden memory size')
-parser.add_argument('--lr', type=float, default=0.0002,
+parser.add_argument('--lr', type=float, default=0.002,
                     help='initial learning rate')
 parser.add_argument('--epochs', type=int, default=1,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=5, metavar='N',
                     help='batch size')
-parser.add_argument('--dropoutP', type=float, default=0.1,
+parser.add_argument('--dropoutP', type=float, default=0.5,
                     help='dropout ratio')
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
-parser.add_argument('--interval', type=int, default=20, metavar='N',
+parser.add_argument('--interval', type=int, default=500, metavar='N',
                     help='report interval')
 parser.add_argument('--exp_idx', type=str,  default='1',
                     help='experiment index')

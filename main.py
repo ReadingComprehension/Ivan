@@ -30,7 +30,7 @@ parser.add_argument('--mem_dim', type=int, default=150,
                     help='hidden memory size')
 parser.add_argument('--lr', type=float, default=0.002,
                     help='initial learning rate')
-parser.add_argument('--epochs', type=int, default=1,
+parser.add_argument('--epochs', type=int, default=10,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=5, metavar='N',
                     help='batch size')
@@ -40,7 +40,7 @@ parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
-parser.add_argument('--interval', type=int, default=500, metavar='N',
+parser.add_argument('--interval', type=int, default=5000, metavar='N',
                     help='report interval')
 parser.add_argument('--exp_idx', type=str,  default='1',
                     help='experiment index')
@@ -97,11 +97,9 @@ for iter in range(iterations):
         iter, corpus.start_id['train'], elapsed * 1000 / interval, cur_loss))
         total_loss = 0
         start_time = time.time()
-        score = evaluation(model, optimizer, criterion, corpus, args.cuda, args.batch_size)
-        print('DEV accuracy: ' + str(score))
 
-    if iter % save_interval == 0 and iter!=0:
-        torch.save([model, optimizer, criterion], 'trainedmodel/'+args.task+'_save.pt')
+    if  iter % interval == 0 :
+        torch.save([model, optimizer, criterion], 'trainedmodel/'+args.task + '_' + str(iter+1)+'_save.pt')
         score = evaluation(model, optimizer, criterion, corpus, args.cuda, args.batch_size)
         print('DEV accuracy: ' + str(score))
 

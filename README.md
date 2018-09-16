@@ -1,5 +1,5 @@
-comatch--jieba version
-preprocess.py 数据预处理：分词（jieba）、选取重要字段
+comatch--jieba version\n
+preprocess.py 数据预处理：分词（jieba）、选取重要字段\n
 main.py  模型的训练与验证
 test.py  得到测试集的答案
 util/corpus.py  产生词向量词典、批量数据选取和格式调整

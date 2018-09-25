@@ -30,11 +30,11 @@ parser.add_argument('--mem_dim', type=int, default=150,
                     help='hidden memory size')
 parser.add_argument('--lr', type=float, default=0.002,
                     help='initial learning rate')
-parser.add_argument('--epochs', type=int, default=10,
+parser.add_argument('--epochs', type=int, default=40,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=5, metavar='N',
                     help='batch size')
-parser.add_argument('--dropoutP', type=float, default=0.5,
+parser.add_argument('--dropoutP', type=float, default=0.1,
                     help='dropout ratio')
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
@@ -117,8 +117,4 @@ for iter in range(iterations):
 
 
 
-model, optimizer, criterion = torch.load('trainedmodel/'+args.task+'_save_best.pt')
-score = evaluation(model, optimizer, criterion, corpus, args.cuda, args.batch_size, dataset='test')
-with open('trainedmodel/'+args.task+'_record.txt', 'a', encoding='utf-8') as fpw:
-    fpw.write('TEST accuracy:\t' + str(score) + '\n')
-print('TEST accuracy: ' + str(score))
+print('Training Over!')

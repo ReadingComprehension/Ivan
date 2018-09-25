@@ -3,13 +3,17 @@ Copyright 2015 Singapore Management University (SMU). All Rights Reserved.
 Permission to use, copy, modify and distribute this software and its documentation for purposes of research, teaching and general academic pursuits, without fee and without a signed licensing agreement, is hereby granted, provided that the above copyright statement, this paragraph and the following paragraph on disclaimer appear in all copies, modifications, and distributions.  Contact Singapore Management University, Intellectual Property Management Office at iie@smu.edu.sg, for commercial licensing opportunities.
 This software is provided by the copyright holder and creator "as is" and any express or implied warranties, including, but not Limited to, the implied warranties of merchantability and fitness for a particular purpose are disclaimed.  In no event shall SMU or the creator be liable for any direct, indirect, incidental, special, exemplary or consequential damages, however caused arising in any way out of the use of this software.
 '''
-import torch
-from utils.corpus import Corpus
-from race.comatch import CoMatch
+
+#从某个记录点开始继续训练
+
 import argparse
+import time
 import torch
+import torch.nn as nn
+import torch.optim as optim
 from utils.corpus import Corpus
-import json
+from race.evaluate import evaluation
+from race.comatch import CoMatch
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -26,7 +30,7 @@ parser.add_argument('--mem_dim', type=int, default=150,
                     help='hidden memory size')
 parser.add_argument('--lr', type=float, default=0.002,
                     help='initial learning rate')
-parser.add_argument('--epochs', type=int, default=10,
+parser.add_argument('--epochs', type=int, default=5,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=5, metavar='N',
                     help='batch size')
@@ -51,56 +55,63 @@ if torch.cuda.is_available():
     else:
         torch.cuda.manual_seed(args.seed)
 
-def accuracy(ground_truth, prediction):
-    assert(len(ground_truth) == len(prediction))
-    accuracy = float( (ground_truth==prediction).float().mean(0) )
-    return accuracy
 
-def evaluation(model, optimizer, criterion, corpus, cuda, batch_size, dataset='valid'):
-    model.eval()
-
-    pred_all = []
-    total_loss = 0
-    count = 0
-    num = 0
-    while True:
-        data = corpus.get_batch(batch_size, dataset)
-        output = model(data)
-        _, pred = output.max(1)
-        pred_all.append(pred.cpu())
-        if corpus.start_id[dataset] >= len(corpus.data_all[dataset]): break
-
-    id = 280001
-    with open ('data/' + args.task + '/test.json', 'r', encoding='utf-8') as fp:
-        line = fp.readline()
-        with open('trainedmodel/' + args.task + '_result.txt', 'a', encoding='utf-8') as fpw:
-            for pred_batch in pred_all:
-                for pred in pred_batch.numpy():
-                    a = json.loads(line)
-                    if pred == 0:
-                        fpw.write(str(id))
-                        fpw.write('\t')
-                        fpw.write(a['alternatives'].split('|')[0])
-                    elif pred == 1:
-                        fpw.write(str(id))
-                        fpw.write('\t')
-                        fpw.write(a['alternatives'].split('|')[1])
-                    else:
-                        fpw.write(str(id))
-                        fpw.write('\t')
-                        fpw.write(a['alternatives'].split('|')[2])
-                    fpw.write('\n')
-                    id+=1
-                    line = fp.readline()
-
-
-corpus = Corpus('RC')
-model = eval(args.model)(corpus, args)
+model, optimizer, criterion = torch.load('trainedmodel/RC_45001_save.pt')
+corpus = Corpus(args.task)
 model.train()
+
 parameters = filter(lambda p: p.requires_grad, model.parameters())
 
-model, optimizer, criterion = torch.load('trainedmodel/RC_save_best.pt')
-evaluation(model, optimizer, criterion, corpus, args.cuda, args.batch_size, dataset='test')
+if args.cuda:
+    model.cuda()
+    criterion.cuda()
+
+start_time = time.time()
+total_loss = 0
+interval = args.interval
+save_interval = len(corpus.data_all['train']) // args.batch_size
+
+best_dev_score = -99999
+iterations = args.epochs * len(corpus.data_all['train']) // args.batch_size
+print('max iterations: ' + str(iterations))
+count = 0
+for iter in range(iterations):
+    optimizer.zero_grad()
+    data = corpus.get_batch(args.batch_size, 'train')
+    output = model(data)
+    labels = data[3].cuda() if args.cuda else data[3]
+    loss = criterion(output, labels)
+    loss.backward()
+    optimizer.step()
+    optimizer.zero_grad()
+
+    total_loss += float(loss.data)
+
+    if iter!=0 and iter % interval == 0:
+
+        cur_loss = total_loss / interval if iter != 0 else total_loss
+        elapsed = time.time() - start_time
+        print('| iterations {:3d} | start_id {:3d} | ms/batch {:5.2f} | loss {:5.3f}'.format(
+            iter, corpus.start_id['train'], elapsed * 1000 / interval, cur_loss))
+        total_loss = 0
+        start_time = time.time()
+
+    if iter!=0 and iter % interval == 0:
+        torch.save([model, optimizer, criterion], 'trainedmodel/' + args.task + '_' + str(iter + 1) + '_save.pt')
+        score = evaluation(model, optimizer, criterion, corpus, args.cuda, args.batch_size)
+        print('DEV accuracy: ' + str(score))
+
+        with open('trainedmodel/' + args.task + '_record.txt', 'a', encoding='utf-8') as fpw:
+            if iter == 0: fpw.write(str(args) + '\n')
+            fpw.write(str(iter) + ':\tDEV accuracy:\t' + str(score) + '\n')
+
+        if score > best_dev_score:
+            best_dev_score = score
+            torch.save([model, optimizer, criterion], 'trainedmodel/' + args.task + '_save_best.pt')
+
+    if (iter + 1) % (len(corpus.data_all['train']) // args.batch_size) == 0:
+        for param_group in optimizer.param_groups:
+            param_group['lr'] *= 0.95
 
 
 

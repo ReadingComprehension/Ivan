@@ -1,16 +1,38 @@
+#coding=utf-8
 import glob
 import os
 import json
 import jieba
-from nltk.tokenize import sent_tokenize, word_tokenize
 import warnings
+import re
+from itertools import chain
 
 warnings.filterwarnings('ignore')
-def sent_word_tokenize(text):
-    sents = sent_tokenize(text)
-    words = [word_tokenize(s) for s in sents]
-    return words
 
+# build StopWordSet
+StopWordsSet = []
+with open('StopWords.txt','r',encoding='gb18030') as fp:
+    for line in fp.readlines():
+        StopWordsSet.append(line.strip('\n'))
+    StopWordsSet.append(" ")
+    StopWordsSet.append("\"")
+
+def sentence_tokenize(doc):
+    sentences = filter(None, re.split('。|！|\!|？|\?',doc))
+    return  sentences
+
+
+# wd_tokenize for query and passage
+def wd_tokenize_pq(text):
+    segments_all = jieba.lcut(text, HMM=True, cut_all=False)
+    segments = []
+    for word in segments_all:
+        if word not in StopWordsSet:
+            segments.append(word)
+    return segments
+
+
+# wd_tokenize for query and ans
 def wd_tokenize(text):
     segments = jieba.lcut(text, HMM=True, cut_all=False)
     return segments
@@ -22,14 +44,13 @@ def answer_index(answer,options):
         return 1
     else:
         return 2
-
 '''
 将原始json中的数据分词分句,并且将答案映射成index形式,生成新.json文件存储在data/RC/sequence中
 '''
 
 def preprocess(task):
     print('Preprocessing the dataset ' + task + '...')
-    data_names = ['train','valid','test']
+    data_names = ['train']
     for data_name in data_names:
         data_all = []
         path = os.path.join('data', task, data_name)
@@ -37,17 +58,88 @@ def preprocess(task):
             for line in fpr.readlines():
                 data_raw = json.loads(line)
                 instance = {}
+                temp = []
                 instance['q_id'] = data_raw['query_id']
-                instance['article'] = [wd_tokenize(s.strip()) for s in sent_tokenize(data_raw['passage'])]
-                instance['question'] = wd_tokenize(data_raw['query'])
-                instance['options'] = [wd_tokenize(option) for option in data_raw['alternatives'].split('|')]
                 if data_name != 'test':
-                    instance['ground_truth'] = answer_index(data_raw['answer'],data_raw['alternatives'].split('|'))
+                    instance['ground_truth'] = answer_index(data_raw['answer_aw'], data_raw['alternatives_aw'].split('|'))
+
+                flag = 1
+                for option in data_raw['alternatives_aw'].split('|'):
+                    if re.search('[A-Za-z0-9]',option) != None:
+                        flag = 0
+
+                if flag == 1:
+                    instance['options'] = [wd_tokenize(option) for option in data_raw['alternatives_aw'].split('|')]
+                    for ss in wd_tokenize_pq(re.sub("[A-Za-z0-9]", "", data_raw['query']).strip()):
+                        if ss not in list(chain.from_iterable(instance['options'])):
+                            temp.append(ss)
+                    instance['question'] = temp
+                    instance['article'] = [wd_tokenize_pq(s.strip()) for s in
+                                           sentence_tokenize(re.sub("[A-Za-z0-9]", "", data_raw['passage']))]
+
+                else:
+                    print(data_raw['query_id'])
+                    instance['options'] = [wd_tokenize(option) for option in data_raw['alternatives_aw'].split('|')]
+                    for ss in wd_tokenize_pq(data_raw['query'].strip()):
+                        if ss not in list(chain.from_iterable(instance['options'])):
+                            temp.append(ss)
+                    instance['question'] = temp
+                    instance['article'] = [wd_tokenize_pq(s.strip()) for s in sentence_tokenize(data_raw['passage'])]
+
                 data_all.append(instance)
                 if len(data_all) % 1000 == 0:
                     print(len(data_all))
-        with open(os.path.join('data', task, 'sequence', data_name)+'.json', 'w', encoding='utf-8') as fpw:
+        with open(os.path.join('data', task, 'sequenceAfterWash', data_name) + '.json', 'w', encoding='utf-8') as fpw:
+        # with open(os.path.join('data', task, 'sequenceAfterWashP', data_name)+'.json', 'w', encoding='utf-8') as fpw:
             json.dump(data_all, fpw,ensure_ascii=False)
+
+
+def preprocess_vt(task):
+    print('Preprocessing the dataset ' + task + '...')
+    data_names = ['valid','test']
+    for data_name in data_names:
+        data_all = []
+        path = os.path.join('data', task, data_name)
+        with open(path + '.json', 'r', encoding='utf-8') as fpr:
+            for line in fpr.readlines():
+                data_raw = json.loads(line)
+                instance = {}
+                temp = []
+                instance['q_id'] = data_raw['query_id']
+                if data_name != 'test':
+                    instance['ground_truth'] = answer_index(data_raw['answer'], data_raw['alternatives'].split('|'))
+
+                flag = 1
+                for option in data_raw['alternatives'].split('|'):
+                    if re.search('[A-Za-z0-9]',option) != None:
+                        flag = 0
+
+                if flag == 1:
+                    instance['options'] = [wd_tokenize(option) for option in data_raw['alternatives'].split('|')]
+                    for ss in wd_tokenize_pq(re.sub("[A-Za-z0-9]", "", data_raw['query']).strip()):
+                        #if ss not in list(chain.from_iterable(instance['options'])):
+                        temp.append(ss)
+                    instance['question'] = temp
+                    instance['article'] = [wd_tokenize_pq(s.strip()) for s in
+                                           sentence_tokenize(re.sub("[A-Za-z0-9]", "", data_raw['passage']))]
+
+                else:
+                    print(data_raw['query_id'])
+                    instance['options'] = [wd_tokenize(option) for option in data_raw['alternatives'].split('|')]
+                    for ss in wd_tokenize_pq(data_raw['query'].strip()):
+                        #if ss not in list(chain.from_iterable(instance['options'])):
+                        temp.append(ss)
+                    instance['question'] = temp
+                    instance['article'] = [wd_tokenize_pq(s.strip()) for s in sentence_tokenize(data_raw['passage'])]
+
+                data_all.append(instance)
+                if len(data_all) % 1000 == 0:
+                    print(len(data_all))
+        with open(os.path.join('data', task, 'sequenceAfterWash', data_name) + '.json', 'w', encoding='utf-8') as fpw:
+        # with open(os.path.join('data', task, 'sequenceAfterWashP', data_name)+'.json', 'w', encoding='utf-8') as fpw:
+            json.dump(data_all, fpw,ensure_ascii=False)
+
 
 if __name__ == '__main__':
     preprocess('RC')
+    preprocess_vt('RC')
